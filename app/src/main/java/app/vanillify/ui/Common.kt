@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.LruCache
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -69,6 +71,17 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
     )
+}
+
+/** [SectionHeader] with an optional text button on the right, e.g. "Select all". */
+@Composable
+fun SectionHeaderWithAction(text: String, action: Pair<String, () -> Unit>?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        SectionHeader(text)
+        action?.let { (label, onClick) ->
+            TextButton(onClick = onClick, modifier = Modifier.padding(end = 8.dp)) { Text(label) }
+        }
+    }
 }
 
 /** What Shizuku needs from the user right now, with the one button that helps. */

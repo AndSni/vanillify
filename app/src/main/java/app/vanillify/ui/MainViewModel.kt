@@ -169,7 +169,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setDns(provider: DnsProvider) = act(refreshPrivacy = true) { e -> listOf(e.setDns(provider)) }
     fun setMic(pkg: String, blocked: Boolean) = act(refreshPrivacy = true) { e -> listOf(e.setMicBlocked(pkg, labelOf(pkg), blocked)) }
     fun setNet(pkg: String, blocked: Boolean) = act(refreshPrivacy = true) { e -> listOf(e.setNetBlocked(pkg, labelOf(pkg), blocked)) }
-    fun undo(change: Change) = act(refreshApps = true, refreshPrivacy = true) { e -> listOf(e.undo(change)) }
+    fun undo(change: Change) = undo(listOf(change))
+
+    /**
+     * Undoes newest first, so several changes to the same app or setting unwind back to
+     * where it started. [changes] may come in any order.
+     */
+    fun undo(changes: List<Change>) = act(refreshApps = true, refreshPrivacy = true) { e ->
+        val order = journal.value.withIndex().associate { (i, c) -> c.id to i } // the journal is newest first
+        changes.sortedBy { order[it.id] ?: Int.MAX_VALUE }.map { e.undo(it) }
+    }
     fun clearHistory() = graph.journal.clear()
 
     // --- One tap --------------------------------------------------------------------------

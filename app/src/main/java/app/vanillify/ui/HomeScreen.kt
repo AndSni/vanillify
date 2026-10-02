@@ -1,7 +1,6 @@
 package app.vanillify.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -233,13 +231,11 @@ fun ReviewScreen(vm: MainViewModel, onClose: () -> Unit) {
         LazyColumn(contentPadding = padding) {
             sections.forEach { section ->
                 item(key = "h:${section.title}") {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        SectionHeader(section.title)
-                        val all = section.items.all { checked[it.key] == true }
-                        TextButton(onClick = { section.items.forEach { checked[it.key] = !all } }, modifier = Modifier.padding(end = 8.dp)) {
-                            Text(if (all) "Clear" else "Select all")
-                        }
-                    }
+                    val all = section.items.all { checked[it.key] == true }
+                    SectionHeaderWithAction(
+                        section.title,
+                        action = if (progress == null) (if (all) "Clear" else "Select all") to { section.items.forEach { checked[it.key] = !all } } else null,
+                    )
                 }
                 items(section.items, key = { it.key }) { item ->
                     ListItem(
