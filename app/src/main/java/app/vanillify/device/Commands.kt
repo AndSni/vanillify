@@ -75,6 +75,66 @@ object Commands {
         else -> null
     }
 
+    // --- What the system is using apps for -------------------------------------------------
+
+    fun roleHolders(role: String) = "cmd role get-role-holders ${quote(role)}"
+    const val OVERLAYS = "cmd overlay list"
+    const val DEVICE_ADMINS = "dumpsys device_policy"
+
+    /** One package per line; empty when nobody holds the role. */
+    fun packages(out: String?): List<String> =
+        out?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() && ' ' !in it && '.' in it }.orEmpty()
+
+    /** Packages of "pkg/.Cls:pkg2/Cls" component lists, as in enabled_accessibility_services. */
+    fun componentPackages(value: String?): List<String> =
+        value?.split(':')?.mapNotNull { c -> c.substringBefore('/').trim().takeIf { '/' in c && it.isNotEmpty() } }?.distinct().orEmpty()
+
+    /**
+     * Device admin packages from `dumpsys device_policy`. Newer Android lists them under
+     * "Enabled Device Admins (User 0, …):" as "    pkg/.Receiver:" lines; older ones as
+     * "admin=ComponentInfo{pkg/cls}".
+     */
+    fun deviceAdmins(out: String?): List<String> {
+        val text = out.orEmpty()
+        val found = Regex("""admin=ComponentInfo\{([^/}]+)/""").findAll(text).map { it.groupValues[1] }.toMutableList()
+        var inSection = false
+        var sectionIndent = 0
+        for (line in text.lines()) {
+            val indent = line.length - line.trimStart().length
+            if (line.trimStart().startsWith("Enabled Device Admins")) {
+                inSection = true
+                sectionIndent = indent
+                continue
+            }
+            if (!inSection || line.isBlank()) continue
+            if (indent <= sectionIndent) {
+                inSection = false
+                continue
+            }
+            val t = line.trim()
+            // Admin lines sit one level in; their details ("uid=…", "policies:") go deeper.
+            if (indent == sectionIndent + 2 && '/' in t && t.endsWith(":")) found += t.substringBefore('/')
+        }
+        return found.distinct()
+    }
+
+    /**
+     * `cmd overlay list`: a target package on its own line, then its overlays indented as
+     * "[x] name" (on), "[ ] name" (off) or "--- name" (target missing). Overlay → target.
+     */
+    fun overlayTargets(out: String?): Map<String, String> {
+        val result = LinkedHashMap<String, String>()
+        var target: String? = null
+        for (raw in out.orEmpty().lines()) {
+            val line = raw.trimEnd()
+            if (line.isBlank()) continue
+            val m = Regex("""^\s*(\[[ x]]|---)\s+(\S+)""").find(line)
+            if (m != null) target?.let { result[m.groupValues[2]] = it }
+            else if (!line.startsWith(" ") && ' ' !in line.trim()) target = line.trim()
+        }
+        return result
+    }
+
     // --- Errors ---------------------------------------------------------------------------
 
     /** The line of a pm/cmd error worth showing, without the Java stack trace. */

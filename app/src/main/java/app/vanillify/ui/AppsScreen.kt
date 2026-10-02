@@ -5,20 +5,15 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Block
@@ -26,9 +21,6 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,8 +30,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -72,7 +62,9 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
     var query by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
     var selected by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var detail by remember { mutableStateOf<AppRow?>(null) }
+    var trail by remember { mutableStateOf(listOf<String>()) }
+    val links by vm.links.collectAsState()
+    val systemUseKnown by vm.systemUseKnown.collectAsState()
     var confirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val ready = shizuku == ShizukuState.READY
@@ -83,13 +75,17 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
         .sortedWith(compareBy({ it.app.state.ordinal }, { it.label.lowercase() }))
     val chosen = apps.orEmpty().filter { it.pkg in selected }
 
-    /** Removing something rated Expert or Keep asks first. */
+    /** Asks first when something is rated risky, is in use by the system, or other apps need it. */
     fun guarded(rows: List<AppRow>, verb: String, run: () -> Unit) {
         val risky = rows.filter { it.tier == Tier.EXPERT || it.tier == Tier.UNSAFE }
-        if (risky.isEmpty()) run() else confirm = (
-            "${risky.size} of these ${if (rows.size == 1) "is" else "are"} rated ${risky.first().tier.label.lowercase()}. " +
-                "$verb ${if (risky.size == 1) "it" else "them"} can break features or the phone itself. You can undo it in History."
-            ) to run
+        val reasons = buildList {
+            if (risky.isNotEmpty()) add(
+                (if (rows.size == 1) "It's" else "${risky.size} of these are") +
+                    " rated ${risky.first().tier.label.lowercase()}: ${verb.lowercase()} ${if (risky.size == 1) "it" else "them"} can break features or the phone itself.",
+            )
+            addAll(vm.removalWarnings(rows))
+        }
+        if (reasons.isEmpty()) run() else confirm = (reasons.joinToString("\n\n") + "\n\nYou can undo it in History.") to run
     }
 
     Scaffold(
@@ -183,7 +179,7 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
                     modifier = Modifier.combinedClickable(
                         onClick = {
                             if (selected.isNotEmpty()) selected = if (row.pkg in selected) selected - row.pkg else selected + row.pkg
-                            else detail = row
+                            else trail = listOf(row.pkg)
                         },
                         onLongClick = { selected = selected + row.pkg },
                     ),
@@ -192,14 +188,21 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
         }
     }
 
-    detail?.let { row ->
+    // The sheet keeps a trail, so following a link to another app can come back.
+    trail.lastOrNull()?.let(vm::rowFor)?.let { row ->
         AppSheet(
             row = row,
+            links = links?.of(row.pkg),
+            systemUseKnown = systemUseKnown,
             ready = ready && !busy,
-            onDismiss = { detail = null },
-            onRemove = { guarded(listOf(row), "Removing") { vm.remove(listOf(row)) }; detail = null },
-            onDisable = { guarded(listOf(row), "Disabling") { vm.disable(listOf(row)) }; detail = null },
-            onRestore = { vm.restore(listOf(row)); detail = null },
+            vm = vm,
+            canGoBack = trail.size > 1,
+            onBack = { trail = trail.dropLast(1) },
+            onOpen = { pkg -> if (vm.rowFor(pkg) != null) trail = trail + pkg },
+            onDismiss = { trail = emptyList() },
+            onRemove = { guarded(listOf(row), "Removing") { vm.remove(listOf(row)) }; trail = emptyList() },
+            onDisable = { guarded(listOf(row), "Disabling") { vm.disable(listOf(row)) }; trail = emptyList() },
+            onRestore = { vm.restore(listOf(row)); trail = emptyList() },
         )
     }
 
@@ -214,76 +217,3 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AppSheet(row: AppRow, ready: Boolean, onDismiss: () -> Unit, onRemove: () -> Unit, onDisable: () -> Unit, onRestore: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(row.pkg, Modifier.size(48.dp))
-                Spacer(Modifier.size(16.dp))
-                Column {
-                    Text(row.label, style = MaterialTheme.typography.titleLarge)
-                    Text(row.pkg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "${row.source.label} · ${row.tier.label} · " + when (row.app.state) {
-                    AppState.ENABLED -> "Active"
-                    AppState.DISABLED -> "Disabled"
-                    AppState.REMOVED -> "Removed"
-                },
-                style = MaterialTheme.typography.labelLarge,
-            )
-            val entry = row.entry
-            if (entry != null && entry.fromVanillify) {
-                Spacer(Modifier.height(16.dp))
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Vanillify found", style = MaterialTheme.typography.labelLarge)
-                        entry.findings.forEach { Text("• ${it.label}", style = MaterialTheme.typography.bodyMedium) }
-                        entry.note?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(it, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-            }
-            if (!entry?.description.isNullOrBlank()) {
-                Spacer(Modifier.height(16.dp))
-                Text(entry!!.description, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (entry != null && entry.neededBy.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
-                Text("Needed by: ${entry.neededBy.joinToString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
-            if (entry == null) {
-                Spacer(Modifier.height(16.dp))
-                Text("No one has rated this app yet. Only remove it if you know what it does.", style = MaterialTheme.typography.bodyMedium)
-            }
-            if (row.stuck) {
-                Spacer(Modifier.height(12.dp))
-                Text("It's already disabled, and the manufacturer blocks removing it further.", style = MaterialTheme.typography.bodyMedium)
-            }
-            Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                when (row.app.state) {
-                    AppState.REMOVED -> Button(onClick = onRestore, enabled = ready) { Text("Restore") }
-                    AppState.DISABLED -> {
-                        if (!row.stuck) Button(onClick = onRemove, enabled = ready) { Text("Remove") }
-                        OutlinedButton(onClick = onRestore, enabled = ready) { Text("Enable") }
-                    }
-                    AppState.ENABLED -> {
-                        Button(onClick = onRemove, enabled = ready) { Text("Remove") }
-                        OutlinedButton(onClick = onDisable, enabled = ready) { Text("Disable") }
-                    }
-                }
-            }
-            if (!ready) {
-                Spacer(Modifier.height(8.dp))
-                Text("Connect Shizuku to make changes.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}

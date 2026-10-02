@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.PermissionInfo
 import android.os.Build
 
 /** What an app looks like to the phone's owner (user 0). */
@@ -18,7 +19,16 @@ data class InstalledApp(
     val state: AppState,
     val usesInternet: Boolean,
     val usesMicrophone: Boolean,
+    /** Every permission the app asks for, including other apps' custom ones. */
+    val requested: List<String> = emptyList(),
+    /** Custom permissions this app defines → true when only same-signature apps may hold them. */
+    val defines: Map<String, Boolean> = emptyMap(),
+    /** Apps with the same id share one identity, permissions and data. */
+    val sharedUserId: String? = null,
 )
+
+/** A code library that one app provides and others load. */
+data class LibraryUse(val name: String, val provider: String, val users: List<String>)
 
 /**
  * Reads the app inventory straight from Android's package manager: no Shizuku needed,
@@ -48,8 +58,25 @@ class Apps(private val context: Context) {
                 state = stateOf(app),
                 usesInternet = Manifest.permission.INTERNET in requested,
                 usesMicrophone = Manifest.permission.RECORD_AUDIO in requested,
+                requested = requested.toList(),
+                defines = info.permissions.orEmpty().associate { it.name to isSignature(it) },
+                sharedUserId = @Suppress("DEPRECATION") info.sharedUserId,
             )
         }.sortedBy { it.label.lowercase() }
+    }
+
+    /** Libraries shipped inside apps (not the framework's own), with the apps that load them. */
+    fun libraries(): List<LibraryUse> = runCatching {
+        pm.getSharedLibraries(0).mapNotNull { lib ->
+            val provider = lib.declaringPackage?.packageName?.takeIf { it != "android" } ?: return@mapNotNull null
+            LibraryUse(lib.name, provider, lib.dependentPackages.map { it.packageName }.filter { it != provider }.distinct())
+        }.filter { it.users.isNotEmpty() }
+    }.getOrDefault(emptyList())
+
+    private fun isSignature(p: PermissionInfo): Boolean {
+        val base = if (Build.VERSION.SDK_INT >= 28) p.protection else @Suppress("DEPRECATION") (p.protectionLevel and PermissionInfo.PROTECTION_MASK_BASE)
+        @Suppress("DEPRECATION")
+        return base == PermissionInfo.PROTECTION_SIGNATURE || base == PermissionInfo.PROTECTION_SIGNATURE_OR_SYSTEM
     }
 
     /** The current state of one app, or null when the phone doesn't have it at all. */

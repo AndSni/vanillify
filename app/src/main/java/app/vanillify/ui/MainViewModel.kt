@@ -13,11 +13,16 @@ import app.vanillify.catalog.Tweak
 import app.vanillify.data.Change
 import app.vanillify.device.AppState
 import app.vanillify.device.InstalledApp
+import app.vanillify.device.LibraryUse
+import app.vanillify.device.LinkIndex
+import app.vanillify.device.SystemUse
+import app.vanillify.device.SystemUseReader
 import app.vanillify.engine.Engine
 import app.vanillify.engine.Outcome
 import app.vanillify.graph
 import app.vanillify.shell.ShizukuState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +90,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     init {
         refreshApps()
         viewModelScope.launch {
-            shizuku.collect { if (it == ShizukuState.READY) refreshPrivacy() }
+            shizuku.collect {
+                if (it == ShizukuState.READY) {
+                    refreshPrivacy()
+                    refreshSystemUse()
+                }
+            }
         }
     }
 
@@ -94,14 +104,75 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun retryShizuku() = graph.bridge.restartHelper()
     fun checkShizuku() = graph.bridge.refresh()
 
+    /** Every app on the phone, including ones you installed, for links and names. */
+    @Volatile private var everything: Map<String, InstalledApp> = emptyMap()
+    @Volatile private var libraries: List<LibraryUse> = emptyList()
+    @Volatile private var systemUse = SystemUse()
+
+    private val _links = MutableStateFlow<LinkIndex?>(null)
+    /** How apps depend on each other; null while loading. */
+    val links: StateFlow<LinkIndex?> = _links
+
+    /** False until roles, services and overlays have been read through Shizuku. */
+    private val _systemUseKnown = MutableStateFlow(false)
+    val systemUseKnown: StateFlow<Boolean> = _systemUseKnown
+
     fun refreshApps() {
         viewModelScope.launch {
             val catalog = graph.catalog.await()
-            val rows = withContext(Dispatchers.IO) { graph.apps.all() }
-                .map { AppRow(it, catalog[it.pkg]) }
+            val (all, libs) = withContext(Dispatchers.IO) { graph.apps.all() to graph.apps.libraries() }
+            everything = all.associateBy { it.pkg }
+            libraries = libs
+            _apps.value = all.map { AppRow(it, catalog[it.pkg]) }
                 // System apps, plus anything the catalog flags as pushed adware.
                 .filter { it.app.system || Finding.ADWARE in it.findings }
-            _apps.value = rows
+            rebuildLinks()
+        }
+    }
+
+    private fun refreshSystemUse() {
+        viewModelScope.launch {
+            val use = SystemUseReader(graph.bridge).read() ?: return@launch
+            systemUse = use
+            _systemUseKnown.value = true
+            rebuildLinks()
+        }
+    }
+
+    private suspend fun rebuildLinks() {
+        val catalog = graph.catalog.await()
+        val apps = everything.values.toList()
+        if (apps.isEmpty()) return
+        _links.value = withContext(Dispatchers.Default) {
+            LinkIndex(apps, libraries, { pkg -> catalog[pkg]?.let { it.dependencies to it.neededBy } }, systemUse)
+        }
+    }
+
+    /** The row for any app on the phone, including ones the Apps list doesn't show. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun rowFor(pkg: String): AppRow? {
+        _apps.value?.firstOrNull { it.pkg == pkg }?.let { return it }
+        val app = everything[pkg] ?: return null
+        val catalog = if (graph.catalog.isCompleted) graph.catalog.getCompleted() else null
+        return AppRow(app, catalog?.get(pkg))
+    }
+
+    /**
+     * What breaks if [rows] go: roles they hold, and other active apps that need them
+     * (apps being removed together don't count). Empty when nothing is in the way.
+     */
+    fun removalWarnings(rows: List<AppRow>): List<String> {
+        val index = _links.value ?: return emptyList()
+        val going = rows.map { it.pkg }.toSet()
+        return rows.flatMap { row ->
+            val l = index.of(row.pkg)
+            val roles = l.roles.map { "${row.label}: ${it.label.replaceFirstChar(Char::lowercase)}. ${it.warning}" }
+            val needers = l.neededBy.filter { it.pkg !in going && everything[it.pkg]?.state == AppState.ENABLED }
+            val needed = if (needers.isEmpty()) emptyList() else listOf(
+                "${needers.size} active app${if (needers.size == 1) " depends" else "s depend"} on ${row.label}: " +
+                    needers.take(4).joinToString { labelOf(it.pkg) } + if (needers.size > 4) ", …" else "",
+            )
+            roles + needed
         }
     }
 
@@ -135,7 +206,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Every app that may use the network, for "Block another app". */
     fun firewallChoices(): List<InstalledApp> = graph.apps.all().filter { it.usesInternet && it.state != AppState.REMOVED }
 
-    fun labelOf(pkg: String): String = _apps.value?.firstOrNull { it.pkg == pkg }?.label
+    fun labelOf(pkg: String): String = everything[pkg]?.label
         ?: runCatching { getApplication<Application>().packageManager.let { pm -> pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } }.getOrDefault(pkg)
 
     // --- Actions --------------------------------------------------------------------------
