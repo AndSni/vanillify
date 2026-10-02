@@ -1,0 +1,43 @@
+Categories:
+  - App Manager
+  - Firewall
+  - Security
+  - System
+License: GPL-3.0-only
+AuthorName: AndSni
+SourceCode: https://github.com/AndSni/vanillify
+IssueTracker: https://github.com/AndSni/vanillify/issues
+Donate: https://ko-fi.com/asnidev
+Changelog: 
+  https://github.com/AndSni/vanillify/blob/HEAD/metadata/en-US/changelogs/%c.txt
+
+# Summary/Description are intentionally omitted: the fastlane-structured
+# metadata/en-US/{title,short_description,full_description}.txt in this repo is
+# the single source of truth.
+AutoName: Vanillify
+
+RepoType: git
+Repo: https://github.com/AndSni/vanillify.git
+# Each version tag also publishes a GitHub Release at that tag
+# (.github/workflows/release-tag.yml) carrying the identical, developer-signed
+# APK, so F-Droid's reproducible-build check can diff its own build against it.
+Binaries: 
+  https://github.com/AndSni/vanillify/releases/download/v%v/Vanillify.apk
+
+Builds:
+  - versionName: 0.1.0
+    versionCode: 1
+    commit: PENDING_RELEASE_COMMIT
+    # The Gradle root is the repo root; F-Droid looks for the output APK under
+    # <subdir>/build/outputs/apk, so this must be the app module itself.
+    subdir: app
+    gradle:
+      - yes
+
+AllowedAPKSigningKeys: 5e991d051c9ad7047b0aaec601bf08a93a887ea9486cf08fdd27e57dfea0502a
+
+AutoUpdateMode: Version
+# Only vX.Y.Z tags are releases; `latest` is CI's rolling pre-release build.
+UpdateCheckMode: Tags ^v[0-9.]+$
+CurrentVersion: 0.1.0
+CurrentVersionCode: 1

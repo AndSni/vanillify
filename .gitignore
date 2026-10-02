@@ -18,3 +18,7 @@ keystore.properties
 
 # --- Claude Code (local tooling, not part of the app) ---
 .claude/
+
+# Public signing certificate, kept locally for registrations
+design/*.pem
+__pycache__/

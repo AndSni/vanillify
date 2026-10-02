@@ -199,8 +199,12 @@ const val SUPPORT_URL = "https://andsni.github.io/vanillify/donate/"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewScreen(vm: MainViewModel, onClose: () -> Unit) {
-    val sections = remember { vm.plan() }
-    val checked = remember { mutableStateMapOf<String, Boolean>().apply { sections.flatMap { it.items }.forEach { put(it.key, it.checked) } } }
+    // Rebuilt once the app list and the privacy checks have loaded, so opening the review early
+    // doesn't leave out what isn't known yet.
+    val appsReady = vm.apps.collectAsState().value != null
+    val privacyReady = vm.privacy.collectAsState().value.loaded
+    val sections = remember(appsReady, privacyReady) { vm.plan() }
+    val checked = remember(sections) { mutableStateMapOf<String, Boolean>().apply { sections.flatMap { it.items }.forEach { put(it.key, it.checked) } } }
     val progress by vm.progress.collectAsState()
     val chosen = sections.flatMap { it.items }.filter { checked[it.key] == true }
 

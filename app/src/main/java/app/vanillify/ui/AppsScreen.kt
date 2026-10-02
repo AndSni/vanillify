@@ -54,7 +54,7 @@ import app.vanillify.shell.ShizukuState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
+fun AppsScreen(vm: MainViewModel, modifier: Modifier, openSheet: String? = null) {
     val apps by vm.apps.collectAsState()
     val shizuku by vm.shizuku.collectAsState()
     val busy by vm.busy.collectAsState()
@@ -62,7 +62,7 @@ fun AppsScreen(vm: MainViewModel, modifier: Modifier) {
     var query by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
     var selected by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var trail by remember { mutableStateOf(listOf<String>()) }
+    var trail by remember { mutableStateOf(listOfNotNull(openSheet)) }
     val links by vm.links.collectAsState()
     val systemUseKnown by vm.systemUseKnown.collectAsState()
     var confirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }

@@ -37,10 +37,13 @@ enum class Tab(val label: String, val selected: ImageVector, val unselected: Ima
     HISTORY("History", Icons.Filled.History, Icons.Outlined.History),
 }
 
+/** Where the app opens; only debug builds set anything here (see MainActivity). */
+data class StartAt(val tab: Tab? = null, val review: Boolean = false, val sheet: String? = null)
+
 @Composable
-fun MainScreen(vm: MainViewModel = viewModel()) {
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    var reviewing by rememberSaveable { mutableStateOf(false) }
+fun MainScreen(vm: MainViewModel = viewModel(), start: StartAt = StartAt()) {
+    var tab by rememberSaveable { mutableStateOf(start.tab ?: if (start.sheet != null) Tab.APPS else Tab.HOME) }
+    var reviewing by rememberSaveable { mutableStateOf(start.review) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -74,7 +77,7 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
         val modifier = Modifier.padding(padding)
         when (tab) {
             Tab.HOME -> HomeScreen(vm, modifier, onVanillify = { reviewing = true }, onOpen = { tab = it })
-            Tab.APPS -> AppsScreen(vm, modifier)
+            Tab.APPS -> AppsScreen(vm, modifier, start.sheet)
             Tab.PRIVACY -> PrivacyScreen(vm, modifier)
             Tab.HISTORY -> HistoryScreen(vm, modifier)
         }

@@ -1,0 +1,1 @@
+Remove preinstalled bloat and stop background data sharing. No root.
