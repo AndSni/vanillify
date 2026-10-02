@@ -7,9 +7,9 @@ License: GPL-3.0-only
 AuthorName: AndSni
 SourceCode: https://github.com/AndSni/vanillify
 IssueTracker: https://github.com/AndSni/vanillify/issues
-Donate: https://ko-fi.com/asnidev
 Changelog: 
   https://github.com/AndSni/vanillify/blob/HEAD/metadata/en-US/changelogs/%c.txt
+Donate: https://ko-fi.com/asnidev
 
 # Summary/Description are intentionally omitted: the fastlane-structured
 # metadata/en-US/{title,short_description,full_description}.txt in this repo is
