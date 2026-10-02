@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A vanilla sprout forming a "V": two leaves and a bud. 108dp canvas, art inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#5B4021" android:pathData="M54,78 Q36,62 32,34 Q50,46 54,78 Z" />
+    <path android:fillColor="#5B4021" android:pathData="M54,78 Q72,62 76,34 Q58,46 54,78 Z" />
+    <path android:fillColor="#C08A2E" android:pathData="M48,40 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" />
+</vector>

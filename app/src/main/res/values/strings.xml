@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vanillify</string>
+    <string name="channel_protection">Protection</string>
+    <string name="channel_protection_desc">Tells you when microphone and network blocks are waiting for Shizuku after a restart</string>
+    <string name="paused_title">Protection paused</string>
+    <plurals name="paused_text">
+        <item quantity="one">Android reset %d block when the phone restarted. Start Shizuku and Vanillify puts it back.</item>
+        <item quantity="other">Android reset %d blocks when the phone restarted. Start Shizuku and Vanillify puts them back.</item>
+    </plurals>
+</resources>
