@@ -20,6 +20,11 @@ import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.VolunteerActivism
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -159,9 +164,36 @@ fun HomeScreen(vm: MainViewModel, modifier: Modifier, onVanillify: () -> Unit, o
                     )
                 }
             }
+            item {
+                val uri = LocalUriHandler.current
+                // Opens the browser: Vanillify itself still has no network access.
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { runCatching { uri.openUri(SUPPORT_URL) } }
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 4.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Icon(Icons.Outlined.VolunteerActivism, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.size(16.dp))
+                    Text(
+                        buildAnnotatedString {
+                            append("Vanillify is free, open source and has no ads. If it made your phone better, you can support its development. ")
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("Support Vanillify") }
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * The project's support section, so the donation service can change without an app
+ * update. Play builds may need this pointed at a plain project page instead.
+ */
+const val SUPPORT_URL = "https://github.com/AndSni/vanillify#support-vanillify"
 
 /** The one-tap plan: every change listed with a checkbox, nothing applied until you confirm. */
 @OptIn(ExperimentalMaterial3Api::class)

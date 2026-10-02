@@ -24,6 +24,17 @@ through [Shizuku](https://shizuku.rikka.app/), which gives it the same rights as
 
 Vanillify has **no internet permission**. It can't send anything anywhere.
 
+## Support Vanillify
+
+Vanillify is free, open source and has no ads, and it stays that way. If it made your phone
+better, you can help:
+
+- ⭐ Star this repository and tell others about it.
+- Report apps that Vanillify rates wrongly, or ones it doesn't know yet, in
+  [Issues](https://github.com/AndSni/vanillify/issues). Findings from real phones are what
+  make the app lists better.
+- Donation options are coming soon.
+
 ## Building
 
 ```sh
