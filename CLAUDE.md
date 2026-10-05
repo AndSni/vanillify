@@ -48,8 +48,10 @@ verification, cert below); code package `app.vanillify`.
 - Before an fdroiddata MR: read its `.gitlab/merge_request_templates/App inclusion.md` and fill it
   exactly; run `fdroid readmeta`, `rewritemeta`, `checkupdates`, `lint` in a scratch copy.
   fdroiddata's CI formatting: `AutoName:` after the Changelog block, no blank line between `Repo:`
-  and `Binaries:`, long URLs wrapped with a trailing space after the key. Fork CI shows 0 jobs: ask
-  maintainers in a note to trigger the pipeline.
+  and `Binaries:`. Whether `Changelog`/`Binaries` URLs wrap onto a second line depends on their
+  length: Vanillify's fit on one line (CI's rewritemeta said so in round 1), SysReadout's longer ones
+  had to wrap. Trust CI's rewritemeta diff over any rule. Fork CI shows 0 jobs: ask maintainers in a
+  note to trigger the pipeline.
 - Release builds: R8 on with `-dontobfuscate` (keep rule for `ShellService`, which Shizuku calls by
   reflection), `vcsInfo.include = false`, `dependenciesInfo` off, EmojiCompat initializer removed
   (no network at first start). Unsigned when there's no `keystore.properties` (F-Droid's build).
