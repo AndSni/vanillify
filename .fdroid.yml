@@ -7,8 +7,7 @@ License: GPL-3.0-only
 AuthorName: AndSni
 SourceCode: https://github.com/AndSni/vanillify
 IssueTracker: https://github.com/AndSni/vanillify/issues
-Changelog: 
-  https://github.com/AndSni/vanillify/blob/HEAD/metadata/en-US/changelogs/%c.txt
+Changelog: https://github.com/AndSni/vanillify/blob/HEAD/metadata/en-US/changelogs/%c.txt
 Donate: https://ko-fi.com/asnidev
 
 # Summary/Description are intentionally omitted: the fastlane-structured
@@ -21,8 +20,7 @@ Repo: https://github.com/AndSni/vanillify.git
 # Each version tag also publishes a GitHub Release at that tag
 # (.github/workflows/release-tag.yml) carrying the identical, developer-signed
 # APK, so F-Droid's reproducible-build check can diff its own build against it.
-Binaries: 
-  https://github.com/AndSni/vanillify/releases/download/v%v/Vanillify.apk
+Binaries: https://github.com/AndSni/vanillify/releases/download/v%v/Vanillify.apk
 
 Builds:
   - versionName: 0.1.0
